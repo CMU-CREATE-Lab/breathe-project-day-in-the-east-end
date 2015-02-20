@@ -302,9 +302,7 @@ function update() {
 
       // How many pixels per mile?
       var offset1mile = mapProjection.fromLatLngToPoint(new google.maps.LatLng(site.latitude + 0.014457067, site.longitude));
-      console.log('scale is ' + scale);
       var unitsPerMile = 1000 * (worldPoint.y - offset1mile.y);
-      console.log(unitsPerMile + ' units per mile');
 
       var bar_width = 5;
       var bar_scale = 0.5;
@@ -392,8 +390,6 @@ google.maps.event.addDomListener(window, 'load', initialize);
 <select id='date'>
   <option>2014-06-20</option>
   <option>2015-02-01</option>
-  <option>2015-02-02</option>
-  <option>2015-02-03</option>
   <option>2015-02-04</option>
   <option>2015-02-05</option>
   <option>2015-02-06</option>
