@@ -31,6 +31,10 @@ var canvasLayer;
 var context;
 var timeSlider;
 var displayArrows = false;
+var video;
+var video2;
+var edgarThompsonCoords = {x: 0, y: 0};
+var doVideoSwitch = false;
 
 function initialize() {
   // Create an array of styles.
@@ -118,7 +122,7 @@ function initialize() {
   };
   canvasLayer = new CanvasLayer(canvasLayerOptions);
   context = canvasLayer.canvas.getContext('2d');
-  window.addEventListener('resize', function () {  google.maps.event.trigger(map, 'resize') }, false);
+  window.addEventListener('resize', function () {  google.maps.event.trigger(map, 'resize'); }, false);
 
   $('#show_wind').change(function() {
     displayArrows = $(this).is(':checked');
@@ -127,13 +131,36 @@ function initialize() {
   $('#show_wind').prop('checked', true);
   displayArrows = true;
 
-  
   $('#date').change(function() {
     window.location.hash = '#' + $('#date option:selected').text();
   });
 
   request_json();
   window.addEventListener('hashchange', request_json);
+
+}
+
+function getVideoSrc(date) {
+  var dateObj = new Date(date);
+  var dateString = dateObj.getFullYear() + '-' + ("0" + (parseInt(dateObj.getMonth()) + 1)).slice(-2) + '-' + ("0" + dateObj.getDate()).slice(-2);
+  var index = ("0" + (date - slider_start_time) / 3600000).slice(-2);
+  videoSrc = "http://explorables.cmucreatelab.org/unreleased/breathe-project-day-in-the-east-end/main/videos/" + dateString + "-" + index + ".mp4";
+  return videoSrc;
+}
+
+function drawVideo() {
+  var frameToDraw;
+  if (video2.readyState != 4) {
+    frameToDraw = video;
+  } else {
+    frameToDraw = video2;
+    if (doVideoSwitch) {
+      doVideoSwitch = false;
+      video.src = video2.src;
+      video.pause();
+    }
+  }
+  context.drawImage(frameToDraw, edgarThompsonCoords.x, edgarThompsonCoords.y, 50, 44);
 }
 
 function request_json() {
@@ -141,18 +168,18 @@ function request_json() {
     window.location.hash = '#2015-02-11';
   }
   var date = window.location.hash.substr(1);
-  
+
   $("#date option").each(function() {
     if($(this).text() == date) {
-      $(this).attr('selected', 'selected');            
-    }                        
+      $(this).attr('selected', 'selected');
+    }
   });
 
   console.log('Requesting json for ' + date);
   $.ajax({
-    url: date + '.json', 
+    url: date + '.json',
     dataType: 'json',
-    success: set_json, 
+    success: set_json,
   });
 }
 
@@ -174,6 +201,20 @@ function set_json(x) {
   console.log('slider start time is ' + slider_start_time);
   var slider_end_time = (start_time + 3600 * 23.5) * 1000;
 
+  // Create video
+  video = document.createElement('video');
+  video.src = getVideoSrc(slider_start_time);
+  video.setAttribute("autoPlay", true);
+  video.setAttribute("loop", true);
+  // Create swapping video
+  // Used to prevent flickering when switching to a new video
+  video2 = document.createElement('video');
+  video2.setAttribute("autoPlay", true);
+  video2.setAttribute("loop", true);
+  video.addEventListener('play',function() {
+    var i = window.setInterval(drawVideo, 30);
+  }, false);
+
   if (!timeSlider) {
     timeSlider = new TimeSlider({
       startTime: slider_start_time,
@@ -183,6 +224,8 @@ function set_json(x) {
         return display_times[(date - slider_start_time) / (3600 * 1000)];
       },
       onChange: function(slider, date) {
+        doVideoSwitch = true;
+        video2.src = getVideoSrc(date);
         // Redraw CanvasLayer
         update();
       },
@@ -276,7 +319,7 @@ function update() {
    * Could use context.resetTransform(), but most browsers don't support
    * it yet.
    */
-  
+
   // scale is just 2^zoom
   // If canvasLayer is scaled (with resolutionScale), we need to scale by
   // the same amount to account for the larger canvas.
@@ -300,6 +343,13 @@ function update() {
       var rectWidth = 0.01;
       var i = (timeSlider.getCurrentTime() - slider_start_time) / 3600000;
 
+      // Edgar Thompson
+      if (site_id == 3) {
+        // Slight offset to position atop on the plant
+        edgarThompsonCoords.x = x + 10;
+        edgarThompsonCoords.y = y - 10;
+        drawVideo();
+      }
       // How many pixels per mile?
       var offset1mile = mapProjection.fromLatLngToPoint(new google.maps.LatLng(site.latitude + 0.014457067, site.longitude));
       var unitsPerMile = 1000 * (worldPoint.y - offset1mile.y);
